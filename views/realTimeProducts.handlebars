@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agregar Productos en Tiempo Real</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    button {
+      background-color: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: darkred;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Productos en Tiempo Real</h1>
+
+  <input type="text" id="nombre" placeholder="Nombre del producto">
+  <input type="number" id="precio" placeholder="Precio del producto">
+  <button onclick="agregarProducto()">Agregar Producto</button>
+
+  <h2>Lista de Productos</h2>
+  <ul id="productos-list">
+    {{#each productos}}
+      <li>
+        <span>{{nombre}} - ${{precio}}</span>
+        <button onclick="eliminarProducto({{id}})">Eliminar</button>
+      </li>
+    {{/each}}
+  </ul>
+
+  <script>
+    const socket = io();
+
+    socket.on("productosActualizados", (productos) => {
+      const productosList = document.getElementById("productos-list");
+      productosList.innerHTML = ""; 
+
+      productos.forEach((producto) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <span>${producto.nombre} - $${producto.precio}</span>
+          <button onclick="eliminarProducto(${producto.id})">Eliminar</button>
+        `;
+        productosList.appendChild(li);
+      });
+    });
+
+    function agregarProducto() {
+      const nombre = document.getElementById("nombre").value;
+      const precio = document.getElementById("precio").value;
+      const nuevoProducto = { nombre, precio: parseFloat(precio) };
+
+      socket.emit("nuevoProducto", nuevoProducto);
+
+      document.getElementById("nombre").value = "";
+      document.getElementById("precio").value = "";
+    }
+
+
+    function eliminarProducto(id) {
+      socket.emit("eliminarProducto", id);
+    }
+  </script>
+
+</body>
+</html>
