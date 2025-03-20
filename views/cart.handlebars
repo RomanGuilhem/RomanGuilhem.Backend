@@ -1,0 +1,28 @@
+<h1>Carrito de Compras</h1>
+<div id="carrito"></div>
+
+<script>
+    async function cargarCarrito() {
+        const cartId = localStorage.getItem("cartId");
+        if (!cartId) {
+            document.getElementById("carrito").innerHTML = "<p>No hay productos en el carrito.</p>";
+            return;
+        }
+
+        const response = await fetch(`/api/carts/${cartId}`);
+        const data = await response.json();
+
+        if (data.status === "success") {
+            let html = "<ul>";
+            data.cart.products.forEach(p => {
+                html += `<li>${p.product.nombre} - Cantidad: ${p.quantity}</li>`;
+            });
+            html += "</ul>";
+            document.getElementById("carrito").innerHTML = html;
+        } else {
+            document.getElementById("carrito").innerHTML = "<p>Error al cargar el carrito.</p>";
+        }
+    }
+
+    cargarCarrito();
+</script>

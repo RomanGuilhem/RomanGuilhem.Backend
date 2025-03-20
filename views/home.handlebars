@@ -1,37 +1,159 @@
-<h2>Lista de Productos</h2>
-<ul id="lista-productos">
-  {{#each productos}}
-    <li>{{nombre}} - ${{precio}}</li>
-  {{/each}}
-</ul>
-
-<h3>Agregar Producto</h3>
-<input type="text" id="nombre" placeholder="Nombre del producto">
-<input type="number" id="precio" placeholder="Precio">
-<button onclick="agregarProducto()">Agregar</button>
-
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const socket = io();
-
-  function agregarProducto() {
-    const nombre = document.getElementById("nombre").value;
-    const precio = document.getElementById("precio").value;
-
-    if (nombre && precio) {
-      socket.emit("nuevoProducto", { nombre, precio: parseFloat(precio) });
-      document.getElementById("nombre").value = "";
-      document.getElementById("precio").value = "";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Productos</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
     }
-  }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    input, select, button {
+      padding: 10px;
+      margin: 5px;
+    }
+    .pagination {
+      margin-top: 20px;
+    }
+    .pagination a {
+      margin: 5px;
+      padding: 10px;
+      text-decoration: none;
+      border: 1px solid #ddd;
+    }
+    .pagination a.active {
+      background-color: blue;
+      color: white;
+    }
+  </style>
+</head>
+<body>
 
-  socket.on("productosActualizados", (productos) => {
-    const lista = document.getElementById("lista-productos");
-    lista.innerHTML = "";
-    productos.forEach((producto) => {
-      const item = document.createElement("li");
-      item.textContent = `${producto.nombre} - US$${producto.precio}`;
-      lista.appendChild(item);
-    });
-  });
-</script>
+  <h1>Lista de Productos</h1>   
+  <h2><a href="/realtimeproducts">Modificar Productos en Tiempo Real</a></h2>
+  <h2><a href="/cart">Ver Carrito</a></h2>
+
+  <label for="filtro-categoria">Filtrar por categoría:</label>
+  <select id="filtro-categoria" onchange="actualizarFiltros()">
+    <option value="todas" {{#if (eq categoriaActual "todas")}}selected{{/if}}>Todas</option>
+    {{#each categorias}}
+      <option value="{{this}}" {{#if (eq this ../categoriaActual)}}selected{{/if}}>{{this}}</option>
+    {{/each}}
+  </select>
+
+  <label for="filtro-disponibilidad">Disponibilidad:</label>
+  <select id="filtro-disponibilidad" onchange="actualizarFiltros()">
+    <option value="todas" {{#if (eq disponibilidad "todas")}}selected{{/if}}>Todas</option>
+    <option value="true" {{#if (eq disponibilidad "true")}}selected{{/if}}>Disponibles</option>
+    <option value="false" {{#if (eq disponibilidad "false")}}selected{{/if}}>No disponibles</option>
+  </select>
+
+  <label for="filtro-orden">Ordenar por precio:</label>
+  <select id="filtro-orden" onchange="actualizarFiltros()">
+    <option value="none" {{#if (eq sort "none")}}selected{{/if}}>Sin orden</option>
+    <option value="asc" {{#if (eq sort "asc")}}selected{{/if}}>Menor a mayor</option>
+    <option value="desc" {{#if (eq sort "desc")}}selected{{/if}}>Mayor a menor</option>
+  </select>
+
+  <ul id="productos-list">
+    {{#each productos}}
+      <li>
+        <span>{{nombre}} - ${{precio}} - {{categoria}} - 
+          {{#if (gt stock 0)}}Disponible{{else}}No disponible{{/if}}
+        </span>
+        {{#if (gt stock 0)}}
+          <button onclick="agregarAlCarrito('{{_id}}')">Agregar al carrito</button>
+        {{/if}}
+      </li>
+    {{/each}}
+  </ul>
+
+  <div class="pagination">
+    {{#if hasPrevPage}}
+      <a href="{{prevLink}}">Anterior</a>
+    {{/if}}
+    <span>Página {{page}} de {{totalPages}}</span>
+    {{#if hasNextPage}}
+      <a href="{{nextLink}}">Siguiente</a>
+    {{/if}}
+  </div>
+
+  <script>
+    function actualizarFiltros() {
+      const categoriaSeleccionada = document.getElementById("filtro-categoria").value;
+      const disponibilidadSeleccionada = document.getElementById("filtro-disponibilidad").value;
+      const ordenSeleccionado = document.getElementById("filtro-orden").value;
+
+      const url = new URL(window.location.href);
+
+      if (categoriaSeleccionada === "todas") {
+        url.searchParams.delete("categoria");
+      } else {
+        url.searchParams.set("categoria", categoriaSeleccionada);
+      }
+
+      if (disponibilidadSeleccionada === "todas") {
+        url.searchParams.delete("disponible");
+      } else {
+        url.searchParams.set("disponible", disponibilidadSeleccionada);
+      }
+
+      if (ordenSeleccionado === "none") {
+        url.searchParams.delete("sort");
+      } else {
+        url.searchParams.set("sort", ordenSeleccionado);
+      }
+
+      window.location.href = url.toString();
+    }
+
+    async function obtenerCarrito() {
+      let cartId = localStorage.getItem("cartId");
+
+      if (!cartId) {
+        const response = await fetch("/api/carts", { method: "POST" });
+        const data = await response.json();
+        if (data.status === "success") {
+          cartId = data.cartId;
+          localStorage.setItem("cartId", cartId);
+        }
+      }
+
+      return cartId;
+    }
+
+    async function agregarAlCarrito(productId) {
+      const cartId = await obtenerCarrito();
+
+      const response = await fetch(`/api/carts/${cartId}/products/${productId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: 1 }),
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        alert("Producto agregado al carrito");
+      } else {
+        alert("Error al agregar producto");
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -22,6 +22,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
     }
     button {
       background-color: red;
@@ -33,7 +34,7 @@
     button:hover {
       background-color: darkred;
     }
-    input, button {
+    input, select, button {
       padding: 10px;
       margin: 5px;
     }
@@ -41,53 +42,76 @@
 </head>
 <body>
 
-  <h1>Productos en Tiempo Real</h1>
+  <h1>Manejo en Tiempo Real</h1>
 
   <input type="text" id="nombre" placeholder="Nombre del producto">
   <input type="number" id="precio" placeholder="Precio del producto">
+  <input type="number" id="stock" placeholder="Stock">
+  <select id="categoria">
+    <option value="" disabled selected>Seleccione una categoría</option>
+    <option value="Electrónica">Electrónica</option>
+    <option value="Ropa">Ropa</option>
+    <option value="Hogar">Hogar</option>
+    <option value="Alimentos">Alimentos</option>
+  </select>
   <button onclick="agregarProducto()">Agregar Producto</button>
 
   <h2>Lista de Productos</h2>
   <ul id="productos-list">
     {{#each productos}}
-      <li>
-        <span>{{nombre}} - ${{precio}}</span>
-        <button onclick="eliminarProducto({{id}})">Eliminar</button>
+      <li id="producto-{{this._id}}">
+        <span><strong>{{this.nombre}}</strong> - ${{this.precio}} | Stock: {{this.stock}} | Categoría: {{this.categoria}}</span>
+        <button onclick="eliminarProducto('{{this._id}}')">Eliminar</button>
       </li>
     {{/each}}
   </ul>
+
+  <a href="/">Volver al Inicio</a>
 
   <script>
     const socket = io();
 
     socket.on("productosActualizados", (productos) => {
       const productosList = document.getElementById("productos-list");
-      productosList.innerHTML = ""; 
+      productosList.innerHTML = "";
 
       productos.forEach((producto) => {
-        const li = document.createElement("li");
-        li.innerHTML = `
-          <span>${producto.nombre} - $${producto.precio}</span>
-          <button onclick="eliminarProducto(${producto.id})">Eliminar</button>
+        let productoElemento = document.createElement("li");
+        productoElemento.id = `producto-${producto._id}`;
+        productoElemento.innerHTML = `
+          <span><strong>${producto.nombre}</strong> - $${producto.precio} | Stock: ${producto.stock} | Categoría: ${producto.categoria}</span>
+          <button onclick="eliminarProducto('${producto._id}')">Eliminar</button>
         `;
-        productosList.appendChild(li);
+        productosList.appendChild(productoElemento);
       });
     });
 
     function agregarProducto() {
-      const nombre = document.getElementById("nombre").value;
-      const precio = document.getElementById("precio").value;
-      const nuevoProducto = { nombre, precio: parseFloat(precio) };
+      const nombre = document.getElementById("nombre").value.trim();
+      const precio = parseFloat(document.getElementById("precio").value.trim());
+      const stock = parseInt(document.getElementById("stock").value.trim());
+      const categoria = document.getElementById("categoria").value;
+
+      if (!nombre || isNaN(precio) || precio <= 0 || isNaN(stock) || stock < 0 || !categoria) {
+        alert("Por favor, ingrese valores válidos en todos los campos.");
+        return;
+      }
+
+      const nuevoProducto = { nombre, precio, stock, categoria };
 
       socket.emit("nuevoProducto", nuevoProducto);
 
       document.getElementById("nombre").value = "";
       document.getElementById("precio").value = "";
+      document.getElementById("stock").value = "";
+      document.getElementById("categoria").value = "";
     }
 
-
     function eliminarProducto(id) {
-      socket.emit("eliminarProducto", id);
+      if (confirm("¿Seguro que deseas eliminar este producto?")) {
+        socket.emit("eliminarProducto", id);
+        document.getElementById(`producto-${id}`)?.remove(); 
+      }
     }
   </script>
 
