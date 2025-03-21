@@ -8,7 +8,7 @@ import cors from "cors";
 import { config } from "./config/config.js";
 import viewsRouter from "./routes/viewsRouter.js";
 import productRouter from "./routes/product.router.js";
-import cartRouter from "./routes/cartRouter.js"; 
+import cartRouter from "./routes/cartRouter.js";
 import Product from "./models/Product.js";
 import { handlebarsHelpers } from "./utils/handlebarsHelpers.js";
 
@@ -20,9 +20,9 @@ const io = new Server(httpServer, {
 
 mongoose
   .connect(config.URL_MONGODB)
-  .then(() => console.log("✅ Conectado a MongoDB"))
+  .then(() => console.log("Conectado a MongoDB"))
   .catch((err) => {
-    console.error("❌ Error conectando a MongoDB:", err);
+    console.error("Error conectando a MongoDB:", err);
     process.exit(1);
   });
 
@@ -40,7 +40,7 @@ app.set("view engine", "handlebars");
 app.set("views", path.resolve("views"));
 
 app.use(cors());
-app.use(express.static(path.resolve("public"))); 
+app.use(express.static(path.resolve("public")));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -49,7 +49,7 @@ app.use("/api/products", productRouter);
 app.use("/api/carts", cartRouter);
 
 mongoose.connection.once("open", () => {
-  console.log("📡 Base de datos conectada, habilitando WebSockets");
+  console.log("Base de datos conectada, habilitando WebSockets");
 
   io.on("connection", (socket) => {
     console.log("🔗 Cliente conectado:", socket.id);
@@ -105,5 +105,5 @@ mongoose.connection.once("open", () => {
 
 const PORT = config.PORT || 3000;
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
