@@ -12,6 +12,11 @@ import cartRouter from "./routes/cartRouter.js";
 import Product from "./models/Product.js";
 import { handlebarsHelpers } from "./utils/handlebarsHelpers.js";
 
+if (!config.URL_MONGODB) {
+  console.error("ERROR: No se ha definido la URL de MongoDB en la configuración.");
+  process.exit(1);
+}
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -22,8 +27,7 @@ mongoose
   .connect(config.URL_MONGODB)
   .then(() => console.log("Conectado a MongoDB"))
   .catch((err) => {
-    console.error("Error conectando a MongoDB:", err);
-    process.exit(1);
+    console.error("Error conectando a MongoDB:", err.stack);
   });
 
 app.engine(
@@ -52,14 +56,14 @@ mongoose.connection.once("open", () => {
   console.log("Base de datos conectada, habilitando WebSockets");
 
   io.on("connection", (socket) => {
-    console.log("🔗 Cliente conectado:", socket.id);
+    console.log("Cliente conectado:", socket.id);
 
     const enviarProductosActualizados = async () => {
       try {
         const productos = await Product.find().lean();
         io.emit("productosActualizados", productos);
       } catch (error) {
-        console.error("Error al obtener productos:", error);
+        console.error("Error al obtener productos:", error.stack);
       }
     };
 
@@ -77,7 +81,7 @@ mongoose.connection.once("open", () => {
 
         io.emit("productoAgregado", nuevoProducto);
       } catch (error) {
-        console.error("Error al agregar producto:", error);
+        console.error("Error al agregar producto:", error.stack);
       }
     });
 
@@ -93,7 +97,7 @@ mongoose.connection.once("open", () => {
           io.emit("productoEliminado", id);
         }
       } catch (error) {
-        console.error("Error eliminando producto:", error);
+        console.error("Error eliminando producto:", error.stack);
       }
     });
 
@@ -102,6 +106,7 @@ mongoose.connection.once("open", () => {
     });
   });
 });
+
 
 const PORT = config.PORT || 3000;
 httpServer.listen(PORT, () => {

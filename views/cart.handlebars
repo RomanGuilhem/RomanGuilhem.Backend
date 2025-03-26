@@ -1,28 +1,72 @@
 <h1>Carrito de Compras</h1>
-<div id="carrito"></div>
+
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{else}}
+  {{#if cart.products.length}}
+    <ul>
+      {{#each cart.products}}
+        <li>
+          <strong>{{this.product.nombre}}</strong> - 
+          Precio: ${{this.product.precio}} - 
+          Cantidad: {{this.quantity}}
+        </li>
+      {{/each}}
+    </ul>
+    <button id="vaciarCarritoBtn" onclick="vaciarCarrito()">Vaciar Carrito</button>
+  {{else}}
+    <p>El carrito está vacío.</p>
+  {{/if}}
+{{/if}}
 
 <script>
-    async function cargarCarrito() {
-        const cartId = localStorage.getItem("cartId");
-        if (!cartId) {
-            document.getElementById("carrito").innerHTML = "<p>No hay productos en el carrito.</p>";
-            return;
-        }
+  async function cargarCarrito() {
+    const cartId = localStorage.getItem("cartId");
 
-        const response = await fetch(`/api/carts/${cartId}`);
-        const data = await response.json();
-
-        if (data.status === "success") {
-            let html = "<ul>";
-            data.cart.products.forEach(p => {
-                html += `<li>${p.product.nombre} - Cantidad: ${p.quantity}</li>`;
-            });
-            html += "</ul>";
-            document.getElementById("carrito").innerHTML = html;
-        } else {
-            document.getElementById("carrito").innerHTML = "<p>Error al cargar el carrito.</p>";
-        }
+    if (!cartId) {
+      document.body.innerHTML += "<p>No hay un carrito disponible.</p>";
+      document.getElementById("vaciarCarritoBtn")?.remove(); 
+      return;
     }
 
-    cargarCarrito();
+    try {
+      const response = await fetch(`/api/carts/${cartId}`);
+      if (!response.ok) throw new Error("No se pudo cargar el carrito.");
+
+      const data = await response.json();
+      if (data.status !== "success") throw new Error(data.message);
+      
+      console.log("Carrito cargado correctamente:", data.cart);
+    } catch (error) {
+      console.error("Error al cargar el carrito:", error);
+      document.body.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+    }
+  }
+
+  async function vaciarCarrito() {
+    const cartId = localStorage.getItem("cartId");
+    if (!cartId) {
+      alert("No hay un carrito disponible.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/carts/${cartId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Error en la solicitud al servidor.");
+
+      const data = await response.json();
+      if (data.status === "success") {
+        alert("Carrito vaciado correctamente.");
+        localStorage.removeItem("cartId");
+        window.location.reload();
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      console.error("Error al vaciar el carrito:", error);
+      alert("Error al vaciar el carrito: " + error.message);
+    }
+  }
+
+  cargarCarrito();
 </script>

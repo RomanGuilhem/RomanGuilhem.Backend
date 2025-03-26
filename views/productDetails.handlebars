@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{producto.nombre}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      text-align: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px;
+      background: blue;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>{{producto.nombre}}</h1>
+    <img src="{{producto.imagen}}" alt="{{producto.nombre}}">
+    <p><strong>Precio:</strong> ${{producto.precio}}</p>
+    <p><strong>Categoría:</strong> {{producto.categoria}}</p>
+    <p><strong>Stock:</strong> {{producto.stock}}</p>
+    <p><strong>Descripción:</strong> {{producto.descripcion}}</p>
+    
+    {{#if (gt producto.stock 0)}}
+      <button onclick="agregarAlCarrito('{{producto._id}}')">Agregar al carrito</button>
+    {{else}}
+      <p style="color: red;">No disponible</p>
+    {{/if}}
+
+    <br><br>
+    <a href="/products">Volver a productos</a>
+  </div>
+
+  <script>
+    async function agregarAlCarrito(productId) {
+      const cartId = await obtenerCarrito();
+      if (!cartId) {
+        alert("No se pudo obtener un carrito válido.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/carts/${cartId}/products/${productId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quantity: 1 }),
+        });
+
+        if (!response.ok) throw new Error("Error al agregar el producto.");
+
+        const data = await response.json();
+        if (data.status === "success") {
+          alert("Producto agregado al carrito");
+        } else {
+          throw new Error(data.message);
+        }
+      } catch (error) {
+        console.error(error);
+        alert("Error al agregar producto al carrito.");
+      }
+    }
+
+    async function obtenerCarrito() {
+      let cartId = localStorage.getItem("cartId");
+
+      if (!cartId) {
+        try {
+          const response = await fetch("/api/carts", { method: "POST" });
+          if (!response.ok) throw new Error("No se pudo crear un carrito.");
+
+          const data = await response.json();
+          if (data.status === "success") {
+            cartId = data.cartId;
+            localStorage.setItem("cartId", cartId);
+          } else {
+            throw new Error("Error al obtener carrito: " + data.message);
+          }
+        } catch (error) {
+          console.error(error);
+          alert("Error al obtener carrito.");
+          return null;
+        }
+      }
+
+      return cartId;
+    }
+  </script>
+
+</body>
+</html>

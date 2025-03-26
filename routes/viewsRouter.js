@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
+import Cart from "../models/Cart.js";
 
 const viewsRouter = Router();
 
@@ -13,12 +14,10 @@ viewsRouter.get("/", async (req, res) => {
     const filter = {};
     if (query) filter.nombre = { $regex: query, $options: "i" };
     if (categoria && categoria !== "todas") filter.categoria = categoria;
-
-    // 🔥 Arreglo del filtro de disponibilidad
     if (disponible === "true") {
-      filter.stock = { $gt: 0 }; // Productos con stock
+      filter.stock = { $gt: 0 };
     } else if (disponible === "false") {
-      filter.stock = 0; // Productos sin stock
+      filter.stock = 0;
     }
 
     console.log("Filtro aplicado:", filter);
@@ -77,6 +76,79 @@ viewsRouter.get("/realTimeProducts", async (req, res) => {
     });
   } catch (error) {
     console.error("Error al obtener productos:", error);
+    res.status(500).send("Error interno del servidor");
+  }
+});
+
+viewsRouter.get("/cart", async (req, res) => {
+  try {
+    const cartId = req.query.cartId;
+    if (!cartId) {
+      return res.render("cart", { error: "No hay un carrito disponible." });
+    }
+
+    const cart = await Cart.findById(cartId).populate("products.product").lean();
+    if (!cart) {
+      return res.render("cart", { error: "Carrito no encontrado." });
+    }
+
+    res.render("cart", { cart });
+  } catch (error) {
+    console.error("Error al obtener el carrito:", error);
+    res.status(500).render("cart", { error: "Error al cargar el carrito." });
+  }
+});
+
+viewsRouter.get("/products", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const options = { page, limit, lean: true };
+
+    const result = await Product.paginate({}, options);
+
+    res.render("products", {
+      products: result.docs,
+      pagination: {
+        totalPages: result.totalPages,
+        currentPage: result.page,
+        hasPrevPage: result.hasPrevPage,
+        hasNextPage: result.hasNextPage,
+        prevPage: result.prevPage,
+        nextPage: result.nextPage,
+      }
+    });
+  } catch (error) {
+    console.error("Error obteniendo productos:", error);
+    res.status(500).send("Error interno del servidor");
+  }
+});
+
+viewsRouter.get("/products/:pid", async (req, res) => {
+  try {
+    const { pid } = req.params;
+    const product = await Product.findById(pid).lean();
+    if (!product) {
+      return res.status(404).send("Producto no encontrado");
+    }
+    res.render("productDetails", { product });
+  } catch (error) {
+    console.error("Error obteniendo producto:", error);
+    res.status(500).send("Error interno del servidor");
+  }
+});
+
+
+viewsRouter.get("/carts/:cid", async (req, res) => {
+  try {
+    const { cid } = req.params;
+    const cart = await Cart.findById(cid).populate("products.product").lean();
+    if (!cart) {
+      return res.status(404).send("Carrito no encontrado");
+    }
+    res.render("cart", { cart });
+  } catch (error) {
+    console.error("Error obteniendo carrito:", error);
     res.status(500).send("Error interno del servidor");
   }
 });
